@@ -293,6 +293,15 @@ Draw the circle shape either filled or as an outline and with the specified numb
 
 .. class:: PointShape
 
+.. class:: CapsuleShape
+    
+.. function:: CapsuleShape:draw(mode, segments)
+
+    :param DrawMode mode: How to draw the shape. Either 'line' or 'fill'.
+    :param number segments: The number of segments to draw each rounded end of the capsule with.
+
+Draw the capsule shape either filled or as an outline and with the specified number of segments per rounded end.
+
 .. function:: newPolygonShape(...)
 
    :param numbers ...: Vertices of the :class:`Polygon`.
@@ -308,3 +317,10 @@ Draw the circle shape either filled or as an outline and with the specified numb
 
    :param numbers x, y: Position of the point.
    :returns: :class:`PointShape`.
+
+.. function:: newCapsuleShape
+
+   :param numbers x, y: Position of the point.
+   :param number radius: Radius of the rounded ends of the capsule. Also its halfwidth.
+   :param number len: length of the capsule from the center of one rounded end to the other. total height = len + radius*2.
+   :returns: :class:`CapsuleShape`.
