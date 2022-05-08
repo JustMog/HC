@@ -99,6 +99,14 @@ function PointShape:init(x,y)
 	self._pos = {x = x, y = y}
 end
 
+local CapsuleShape = {}
+function CapsuleShape:init(x,y, radius, len)
+	Shape.init(self, 'capsule')
+	self._pos = {x = x, y = y}
+	self._len = len
+	self._radius = radius
+end
+
 --
 -- collision functions
 --
@@ -117,6 +125,19 @@ end
 function CircleShape:support(dx,dy)
 	return vector.add(self._center.x, self._center.y,
 		vector.mul(self._radius, vector.normalize(dx,dy)))
+end
+
+function CapsuleShape:support(dx, dy)
+	dx, dy = vector.normalize(dx, dy)
+	local rx, ry = vector.rotate(-self._rotation, dx, dy)
+
+	local resX, resY = 0, self._len/2
+	if vector.dot(rx, ry, 0, 1) < 0 then resY = resY * -1 end
+
+	resX, resY = vector.add(resX, resY, vector.mul(self._radius, rx, ry))
+	resX, resY = vector.rotate(self._rotation, resX, resY)
+
+	return vector.add(resX, resY, self._pos.x, self._pos.y)
 end
 
 -- collision dispatching:
@@ -185,6 +206,18 @@ function PointShape:collidesWith(other)
 	return other:contains(self._pos.x, self._pos.y), 0,0
 end
 
+function CapsuleShape:collidesWith(other)
+	if self == other then return false end
+	if other._type == 'point' then
+		return other:collidesWith(self)
+	end
+	if other._type == 'compound' then
+		local collide, sx,sy = other:collidesWith(self)
+		return collide, sx and -sx, sy and -sy
+	end
+	return GJK(self, other)
+end
+
 --
 -- point location/ray intersection
 --
@@ -204,6 +237,16 @@ function PointShape:contains(x,y)
 	return x == self._pos.x and y == self._pos.y
 end
 
+function CapsuleShape:contains(x,y)
+	x = x - self._pos.x
+	y = y - self._pos.y
+	x, y = vector.rotate(-self._rotation, x, y)
+	if math.abs(x) < self._radius and math.abs(y) < self._len/2 then
+		return true
+	end
+	return vector.len2(x, y-self._len/2) < self._radius * self._radius
+	or vector.len2(x, y+self._len/2) < self._radius * self._radius
+end
 
 function ConcavePolygonShape:intersectsRay(x,y, dx,dy)
 	return self._polygon:intersectsRay(x,y, dx,dy)
@@ -266,6 +309,14 @@ function PointShape:intersectionsWithRay(x,y, dx,dy)
 	return intersects and {t} or {}
 end
 
+function CapsuleShape:intersectsRay(x,y, dx,dy)
+	error("CapsuleShape:intersectsRay not yet implemented", 2)
+end
+
+function CapsuleShape:intersectionsWithRay(x,y, dx,dy)
+	error("CapsuleShape:intersectionsWithRay not yet implemented", 2)
+end
+
 --
 -- auxiliary
 --
@@ -282,6 +333,10 @@ function CircleShape:center()
 end
 
 function PointShape:center()
+	return self._pos.x, self._pos.y
+end
+
+function CapsuleShape:center()
 	return self._pos.x, self._pos.y
 end
 
@@ -304,6 +359,10 @@ function PointShape:outcircle()
 	return self._pos.x, self._pos.y, 0
 end
 
+function CapsuleShape:outcircle()
+	return self._pos.x, self._pos.y, self._len/2 + self._radius
+end
+
 function ConvexPolygonShape:bbox()
 	return self._polygon:bbox()
 end
@@ -321,6 +380,14 @@ end
 function PointShape:bbox()
 	local x,y = self:center()
 	return x,y,x,y
+end
+
+function CapsuleShape:bbox()
+	local left = self:support(-1, 0)
+	local right = self:support(1, 0)
+	local _, top = self:support(0,-1)
+	local _, bottom = self:support(0,1)
+	return left, top, right, bottom
 end
 
 
@@ -341,6 +408,11 @@ function CircleShape:move(x,y)
 end
 
 function PointShape:move(x,y)
+	self._pos.x = self._pos.x + x
+	self._pos.y = self._pos.y + y
+end
+
+function CapsuleShape:move(x,y)
 	self._pos.x = self._pos.x + x
 	self._pos.y = self._pos.y + y
 end
@@ -374,6 +446,18 @@ function PointShape:rotate(angle, cx,cy)
 	self._pos.x,self._pos.y = vector.add(cx,cy, vector.rotate(angle, self._pos.x-cx, self._pos.y-cy))
 end
 
+function CapsuleShape:rotate(angle, cx,cy)
+	Shape.rotate(self, angle)
+	if not (cx and cy) then return end
+	local startX, startY = cx, cy
+	cx, cy = vector.sub(cx, cy, self._pos.x, self._pos.y)
+	cx, cy = vector.rotate(angle, cx, cy)
+	cx, cy = vector.add(cx, cy, self._pos.x, self._pos.y)
+	cx, cy = vector.sub(cx, cy, startX, startY)
+	self:move(-cx, -cy)
+
+end
+
 
 function ConcavePolygonShape:scale(s)
 	assert(type(s) == "number" and s > 0, "Invalid argument. Scale must be greater than 0")
@@ -400,6 +484,11 @@ function PointShape:scale()
 	-- nothing
 end
 
+function CapsuleShape:scale(s)
+	assert(type(s) == "number" and s > 0, "Invalid argument. Scale must be greater than 0")
+	self._radius = self._radius * s
+	self._len = self._len * s
+end
 
 function ConvexPolygonShape:draw(mode)
 	mode = mode or 'line'
@@ -426,12 +515,32 @@ function PointShape:draw()
 	(love.graphics.points or love.graphics.point)(self:center())
 end
 
+function CapsuleShape:draw(mode, segments)
+    love.graphics.push()
+    love.graphics.translate(self._pos.x, self._pos.y)
+    love.graphics.rotate(self._rotation)
+
+	if mode == "line" then
+		love.graphics.line(-self._radius,-self._len/2, -self._radius, self._len/2)
+		love.graphics.line(self._radius,-self._len/2, self._radius, self._len/2)
+
+		love.graphics.arc("line", "open", 0, -self._len/2, self._radius, 0, -math.pi, segments)
+		love.graphics.arc("line", "open", 0, self._len/2, self._radius, 0, math.pi, segments)
+	else
+		love.graphics.rectangle("fill", -self._radius,-self._len/2, self._radius*2, self._len)
+		love.graphics.circle("fill", 0, -self._len/2, self._radius, segments)
+		love.graphics.circle("fill", 0, self._len/2, self._radius, segments)
+	end
+
+    love.graphics.pop()
+end
 
 Shape = common_local.class('Shape', Shape)
 ConvexPolygonShape  = common_local.class('ConvexPolygonShape',  ConvexPolygonShape,  Shape)
 ConcavePolygonShape = common_local.class('ConcavePolygonShape', ConcavePolygonShape, Shape)
 CircleShape         = common_local.class('CircleShape',         CircleShape,         Shape)
 PointShape          = common_local.class('PointShape',          PointShape,          Shape)
+CapsuleShape        = common_local.class('CapsuleShape',        CapsuleShape,        Shape)
 
 local function newPolygonShape(polygon, ...)
 	-- create from coordinates if needed
@@ -456,13 +565,19 @@ local function newPointShape(...)
 	return common_local.instance(PointShape, ...)
 end
 
+local function newCapsuleShape(...)
+	return common_local.instance(CapsuleShape, ...)
+end
+
 return {
 	ConcavePolygonShape = ConcavePolygonShape,
 	ConvexPolygonShape  = ConvexPolygonShape,
 	CircleShape         = CircleShape,
 	PointShape          = PointShape,
+	CapsuleShape        = CapsuleShape,
 	newPolygonShape     = newPolygonShape,
 	newCircleShape      = newCircleShape,
 	newPointShape       = newPointShape,
+	newCapsuleShape     = newCapsuleShape,
 }
 

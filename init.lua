@@ -40,6 +40,7 @@ end
 local newPolygonShape = Shapes.newPolygonShape
 local newCircleShape  = Shapes.newCircleShape
 local newPointShape   = Shapes.newPointShape
+local newCapsuleShape   = Shapes.newCapsuleShape
 
 local HC = {}
 function HC:init(cell_size)
@@ -98,6 +99,10 @@ function HC:point(x,y)
 	return self:register(newPointShape(x,y))
 end
 
+function HC:capsule(x,y, radius, len)
+	return self:register(newCapsuleShape(x,y, radius, len))
+end
+
 -- collision detection
 function HC:neighbors(shape)
 	local neighbors = self._hash:inSameCells(shape:bbox())
@@ -143,6 +148,7 @@ return setmetatable({
 	rectangle = function(...) return instance:rectangle(...) end,
 	circle    = function(...) return instance:circle(...) end,
 	point     = function(...) return instance:point(...) end,
+	capsule     = function(...) return instance:capsule(...) end,
 
 	neighbors  = function(...) return instance:neighbors(...) end,
 	collisions = function(...) return instance:collisions(...) end,
