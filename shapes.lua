@@ -523,14 +523,11 @@ function CapsuleShape:draw(mode, segments)
 	if mode == "line" then
 		love.graphics.line(-self._radius,-self._len/2, -self._radius, self._len/2)
 		love.graphics.line(self._radius,-self._len/2, self._radius, self._len/2)
-
-		love.graphics.arc("line", "open", 0, -self._len/2, self._radius, 0, -math.pi, segments)
-		love.graphics.arc("line", "open", 0, self._len/2, self._radius, 0, math.pi, segments)
 	else
 		love.graphics.rectangle("fill", -self._radius,-self._len/2, self._radius*2, self._len)
-		love.graphics.circle("fill", 0, -self._len/2, self._radius, segments)
-		love.graphics.circle("fill", 0, self._len/2, self._radius, segments)
 	end
+	love.graphics.arc(mode, "open", 0, -self._len/2, self._radius, 0, -math.pi, segments)
+	love.graphics.arc(mode, "open", 0, self._len/2, self._radius, 0, math.pi, segments)
 
     love.graphics.pop()
 end
