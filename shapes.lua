@@ -383,10 +383,15 @@ function PointShape:bbox()
 end
 
 function CapsuleShape:bbox()
-	local left = self:support(-1, 0)
-	local right = self:support(1, 0)
-	local _, top = self:support(0,-1)
-	local _, bottom = self:support(0,1)
+	local ax, ay = vector.rotate(self._rotation, 0, -self._len/2)
+	local bx, by = vector.add(-ax, -ay, self._pos.x, self._pos.y)
+	ax, ay = vector.add(ax, ay, self._pos.x, self._pos.y)
+
+	local left = math.min(ax, bx) - self._radius
+	local top = math.min(ay, by) - self._radius
+	local right = math.max(ax, bx) + self._radius
+	local bottom = math.max(ay, by) + self._radius
+
 	return left, top, right, bottom
 end
 
