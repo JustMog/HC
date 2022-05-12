@@ -75,9 +75,10 @@ end
 function HC:remove(shape)
 	self._hash:remove(shape, shape:bbox())
 	for _, f in ipairs({'move', 'rotate', 'scale'}) do
-		shape[f] = function()
-			error(f.."() called on a removed shape")
-		end
+		shape[f] = nil --fall back to original class definition
+		-- shape[f] = function()
+		-- 	error(f.."() called on a removed shape")
+		-- end
 	end
 	return self
 end

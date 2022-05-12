@@ -17,3 +17,7 @@ local world = HC.new(cellSize)
 local cap = world:capsule(x, y, radius, length)
 
 ```
+
+### Differences
+
+- Removed shapes no longer have their tranformation functions obliterated for no reason, so they can still be used and re-registered later.
